@@ -12,9 +12,18 @@ interface JwtPayload {
   permissions?: Record<string, Record<string, boolean>>;
 }
 
+export interface AuthenticatedRequest extends Request {
+  user?: {
+    id: string;
+    role: string;
+    orgId: string;
+    permissions?: Record<string, Record<string, boolean>>;
+  };
+}
+
 export const authenticate =
   (cookieName: string) =>
-  async (req: Request, res: Response, next: NextFunction) => {
+  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     const token = req.cookies[cookieName];
 
     if (!token) {
@@ -53,7 +62,7 @@ export const authMiddleware = authenticate;
 
 export const authenticateAny =
   (...cookieNames: string[]) =>
-  (req: Request, res: Response, next: NextFunction) => {
+  (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     let token: string | undefined;
 
     for (const name of cookieNames) {
@@ -89,7 +98,7 @@ export const authenticateAny =
 
 // Authorize roles middleware
 export const authorizeRoles = (...allowedRoles: string[]) => {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     if (!req.user || !allowedRoles.includes(req.user.role)) {
       return next(
         new AppError(
