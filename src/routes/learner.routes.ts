@@ -1,9 +1,14 @@
 import { Router } from "express";
 import { authMiddleware } from "../middlewares/auth.middleware";
 import {
+  createBookmarkController,
+  getAssignmentsController,
+  getBookmarksController,
   getCourseByIdController,
   getCoursesController,
   getLearnerProfileController,
+  getLearningPathByIdController,
+  getLearningPathsController,
 } from "../controllers/learner.controller";
 import { validate } from "../middlewares/validate.middleware";
 import { CommunityPostZodSchema } from "../schemas/communityPost.schema";
@@ -11,6 +16,7 @@ import {
   createPostController,
   getPostsController,
 } from "../controllers/communityPost.controller";
+import { BookmarkZodSchema } from "../schemas/bookmark.schema";
 
 const router = Router();
 
@@ -40,4 +46,32 @@ router.get(
   getCourseByIdController,
 );
 
+router.get(
+  "/get-learningPaths",
+  authMiddleware("learner_token"),
+  getLearningPathsController,
+);
+router.get(
+  "/get-learningPath/:learningPathId",
+  authMiddleware("learner_token"),
+  getLearningPathByIdController,
+);
+
+router.get(
+  "/get-assignments",
+  authMiddleware("learner_token"),
+  getAssignmentsController,
+);
+
+router.post(
+  "/create-bookmark",
+  validate(BookmarkZodSchema),
+  // authMiddleware("learner_token"),
+  createBookmarkController,
+);
+router.get(
+  "/get-bookmarks",
+  authMiddleware("learner_token"),
+  getBookmarksController,
+);
 export default router;

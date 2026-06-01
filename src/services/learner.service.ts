@@ -1,7 +1,9 @@
 import { AppError } from "../common/errors/api-error";
 import { StatusCodes } from "../common/errors/statusCodes";
+import { Bookmark } from "../models/Bookmark.model";
 import { Course } from "../models/Course.model";
 import { Learner } from "../models/Learner.model";
+import { IBookmark } from "../schemas/bookmark.schema";
 
 export const getLearnerProfile = async (id: string) => {
   const learner = await Learner.findById(id).select("-password");
@@ -101,4 +103,42 @@ export const getCourseById = async (
   course.progress = tracking ? tracking.progress : 0;
 
   return course;
+};
+
+export const bookmarkService = {
+  async create(bookmarkData: Partial<IBookmark>) {
+    try {
+      const newBookmark = new Bookmark(bookmarkData);
+      const savedBookmark = await newBookmark.save();
+
+      return savedBookmark.toObject();
+    } catch (error) {
+      console.error("Database error inside bookmarkService.create:", error);
+      throw error;
+    }
+  },
+
+  async getAll(userId: any) {
+    try {
+      return await Bookmark.find({ user: userId })
+        .sort({ savedAt: -1 })
+        .populate({ path: "course" }) // Order chronologically: newest saved bookmarks first
+        .lean();
+    } catch (error) {
+      console.error("Database error inside bookmarkService.getAll:", error);
+      throw error;
+    }
+  },
+
+  async getById(id: string) {
+    try {
+      return await Bookmark.findById(id).lean();
+    } catch (error) {
+      console.error(
+        `Database error inside bookmarkService.getById [${id}]:`,
+        error,
+      );
+      throw error;
+    }
+  },
 };

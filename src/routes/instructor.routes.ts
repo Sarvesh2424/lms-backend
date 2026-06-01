@@ -8,7 +8,11 @@ import {
   getPostsController,
 } from "../controllers/communityPost.controller";
 import { CourseZodSchema } from "../schemas/course.schema";
-import { createCourseController } from "../controllers/instructor.controller";
+import {
+  createAssignmentController,
+  createCourseController,
+} from "../controllers/instructor.controller";
+import { AssignmentZodSchema } from "../schemas/assignment.schema";
 
 const router = Router();
 
@@ -17,6 +21,12 @@ router.post(
   validate(CourseZodSchema),
   // authMiddleware("learner_token"),
   createCourseController,
+);
+
+router.post(
+  "/create-assignment",
+  validate(AssignmentZodSchema),
+  createAssignmentController,
 );
 
 export default router;

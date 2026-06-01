@@ -1,5 +1,6 @@
 import { AppError } from "../common/errors/api-error";
 import { StatusCodes } from "../common/errors/statusCodes";
+import { Assignment } from "../models/Assignment.model";
 import { Course } from "../models/Course.model";
 import { Instructor } from "../models/Instructor.model";
 
@@ -9,7 +10,7 @@ export const createCourse = async (courseData: any) => {
   if (!instructorExists) {
     throw new AppError(
       `Assignment failed: Instructor with ID '${courseData.instructor}' does not exist.`,
-      StatusCodes.NOT_FOUND
+      StatusCodes.NOT_FOUND,
     );
   }
 
@@ -18,7 +19,7 @@ export const createCourse = async (courseData: any) => {
   if (duplicateTitle) {
     throw new AppError(
       "A course with this title already exists.",
-      StatusCodes.CONFLICT
+      StatusCodes.CONFLICT,
     );
   }
 
@@ -28,4 +29,27 @@ export const createCourse = async (courseData: any) => {
     path: "instructor",
     select: "name email", // Pull safe public presentation details
   });
+};
+
+export const assignmentService = {
+  async create(assignmentData: any) {
+    try {
+      const courseExists = await Course.findById(assignmentData.course);
+      if (!courseExists) {
+        throw new AppError(
+          `Assignment failed: Instructor with ID '${assignmentData.course}' does not exist.`,
+          StatusCodes.NOT_FOUND,
+        );
+      }
+      const newAssignment = new Assignment(assignmentData);
+      const savedAssignment = await newAssignment.save();
+
+      return savedAssignment.toObject();
+    } catch (error) {
+      throw new AppError(
+        "Database error inside assignmentService.create:" + error,
+        StatusCodes.BAD_REQUEST,
+      );
+    }
+  },
 };
