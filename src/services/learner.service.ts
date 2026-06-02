@@ -2,8 +2,14 @@ import { AppError } from "../common/errors/api-error";
 import { StatusCodes } from "../common/errors/statusCodes";
 import { Bookmark } from "../models/Bookmark.model";
 import { Course } from "../models/Course.model";
+import { Goal } from "../models/Goal.model";
 import { Learner } from "../models/Learner.model";
+import { Todo } from "../models/Todo.model";
+import { WorkspaceNote } from "../models/WorkspaceNote.model";
 import { IBookmark } from "../schemas/bookmark.schema";
+import { IGoal } from "../schemas/goal.schema";
+import { ITodo } from "../schemas/todo.schema";
+import { IWorkspaceNote } from "../schemas/workspaceNote.schema";
 
 export const getLearnerProfile = async (id: string) => {
   const learner = await Learner.findById(id).select("-password");
@@ -118,12 +124,13 @@ export const bookmarkService = {
     }
   },
 
-  async getAll(userId: any) {
+  async getAll(learner: any) {
     try {
-      return await Bookmark.find({ user: userId })
+      const data = await Bookmark.find({ learner: learner.id })
         .sort({ savedAt: -1 })
-        .populate({ path: "course" }) // Order chronologically: newest saved bookmarks first
-        .lean();
+        .populate({ path: "course", select: "title" })
+        .exec(); // Order chronologically: newest saved bookmarks first
+      return data;
     } catch (error) {
       console.error("Database error inside bookmarkService.getAll:", error);
       throw error;
@@ -141,4 +148,117 @@ export const bookmarkService = {
       throw error;
     }
   },
+};
+
+export const workspaceNoteService = {
+  async create(noteData: Partial<IWorkspaceNote>) {
+    try {
+      const newNote = new WorkspaceNote(noteData);
+      const savedNote = await newNote.save();
+
+      return savedNote.toObject();
+    } catch (error) {
+      console.error(
+        "Database error inside workspaceNoteService.create:",
+        error,
+      );
+      throw error;
+    }
+  },
+  async getAll(learner: any) {
+    try {
+      return await WorkspaceNote.find({ learner: learner.id })
+        .sort({ updatedAt: -1 }) // Order chronologically: recently edited notes first
+        .populate({ path: "course" })
+        .exec();
+    } catch (error) {
+      console.error(
+        "Database error inside workspaceNoteService.getAll:",
+        error,
+      );
+      throw error;
+    }
+  },
+  async getById(id: string | string[]) {
+    try {
+      return await WorkspaceNote.findById(id).lean();
+    } catch (error) {
+      console.error(
+        `Database error inside workspaceNoteService.getById [${id}]:`,
+        error,
+      );
+      throw error;
+    }
+  },
+};
+
+export const todoService = {
+  async create(todoData: Partial<ITodo>) {
+    try {
+      const newTodo = new Todo(todoData);
+      const savedTodo = await newTodo.save();
+
+      return savedTodo.toObject();
+    } catch (error) {
+      console.error("Database layer error inside todoService.create:", error);
+      throw error;
+    }
+  },
+  async getAll(learner: any) {
+    try {
+      // Sort strategy: Active tasks first, then sort by oldest deadlines
+      return await Todo.find({ learner: learner.id })
+        .sort({ done: 1, due: 1, createdAt: -1 })
+        .lean()
+        .exec();
+    } catch (error) {
+      console.error("Database error within todoService.getAll:", error);
+      throw error;
+    }
+  },
+  async update(id: string | string[], updateData: Partial<ITodo>) {
+    try {
+      const updatedTodo = await Todo.findByIdAndUpdate(
+        id,
+        { $set: updateData },
+        {
+          new: true, // Return the modified document rather than the original
+          runValidators: true, // Ensure the updates still match your schema rules
+        },
+      ).lean();
+
+      return updatedTodo;
+    } catch (error) {
+      console.error(
+        `Database layer error inside todoService.update [${id}]:`,
+        error,
+      );
+      throw error;
+    }
+  },
+};
+
+export const goalService = {
+  async create(goalData: Partial<IGoal>) {
+    try {
+      const newGoal = new Goal(goalData);
+      const savedGoal = await newGoal.save();
+      
+      return savedGoal.toObject();
+    } catch (error) {
+      console.error("Database error inside goalService.create:", error);
+      throw error;
+    }
+  },
+  async getAll(learner: any) {
+    try {
+      return await Goal.find({ learner: learner.id })
+        .sort({ createdAt: -1 }) // Sort chronologically: newest targets first
+        .lean()
+        .exec();
+    } catch (error) {
+      console.error("Database error inside goalService.getAll:", error);
+      throw error;
+    }
+  }
 };
