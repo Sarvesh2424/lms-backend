@@ -11,8 +11,8 @@ export const loginLearnerController = asyncHandler(
 
     res.cookie("learner_token", token, {
       httpOnly: true,
-      secure: false, // true in prod (https), false locally
-      sameSite: "lax",
+      secure: true, // true in prod (https), false locally
+      sameSite: "none",
       path: "/",
       maxAge: 1 * 24 * 60 * 60 * 1000, // 1 day
     });
