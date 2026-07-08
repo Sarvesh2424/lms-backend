@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { AppError } from "../common/errors/api-error";
 import { StatusCodes } from "../common/errors/statusCodes";
 import { Bookmark } from "../models/Bookmark.model";
@@ -87,50 +88,96 @@ export const getCourseById = async (
   learnerData: any,
 ) => {
   const courseDoc = await Course.findById(id)
-    .populate({
-      path: "instructor",
-      select: "name email",
-    })
+    .populate({ path: "instructor", select: "name email" })
     .exec();
 
-  const learnerDoc = await Learner.findById(learnerData.id);
   if (!courseDoc) return null;
 
-  // Convert the Mongoose Document to a plain JavaScript object so we can add properties
+  const learnerId = learnerData._id || learnerData.id;
+  const learnerDoc = await Learner.findById(learnerId);
   const course = courseDoc.toObject() as any;
-  const learner = learnerDoc.toObject() as any;
 
-  // Find if this user has a progress record matching this course's ID
+  if (!learnerDoc) {
+    course.progress = 0;
+    course.isEnrolled = false;
+    course.isBookmarked = false;
+    return course;
+  }
+
+  const learner = learnerDoc.toObject() as any;
   const tracking = learner.enrolledCourses.find(
     (item: any) => item.courseId.toString() === course._id.toString(),
   );
 
-  // Inject the progress field directly into the backend response layout
   course.progress = tracking ? tracking.progress : 0;
+  course.isEnrolled = Boolean(tracking);
+  course.isBookmarked = await Bookmark.exists({
+    learner: learnerId,
+    course: course._id,
+  }).then(Boolean);
 
   return course;
 };
 
 export const bookmarkService = {
-  async create(bookmarkData: Partial<IBookmark>) {
+  async toggle(
+    learnerId: string,
+    courseId: string | string[],
+    data: {
+      title: string;
+      type:
+        | "lesson"
+        | "video"
+        | "note"
+        | "pdf"
+        | "quiz"
+        | "discussion"
+        | "resource"
+        | "course";
+      note?: string;
+    },
+  ) {
     try {
-      const newBookmark = new Bookmark(bookmarkData);
-      const savedBookmark = await newBookmark.save();
+      const existing = await Bookmark.findOne({
+        learner: learnerId,
+        course: courseId,
+      });
 
-      return savedBookmark.toObject();
-    } catch (error) {
-      console.error("Database error inside bookmarkService.create:", error);
+      if (existing) {
+        await Bookmark.deleteOne({ _id: existing._id });
+        return { bookmarked: false };
+      }
+
+      const created = await Bookmark.create({
+        learner: learnerId,
+        course: courseId as string,
+        title: data.title,
+        type: data.type,
+        note: data.note,
+      });
+
+      return { bookmarked: true };
+    } catch (error: any) {
+      // Race condition guard: two rapid clicks could both pass the
+      // findOne check before either insert completes. The unique index
+      // on the model catches that — surface it as "already bookmarked"
+      // instead of a raw 500.
+      if (error?.code === 11000) {
+        throw new AppError(
+          "This course is already bookmarked",
+          StatusCodes.CONFLICT,
+        );
+      }
       throw error;
     }
   },
 
-  async getAll(learner: any) {
+  async getAll(learnerId: string) {
     try {
-      const data = await Bookmark.find({ learner: learner.id })
-        .sort({ savedAt: -1 })
+      return await Bookmark.find({ learner: learnerId })
+        .sort({ createdAt: -1 })
         .populate({ path: "course", select: "title" })
-        .exec(); // Order chronologically: newest saved bookmarks first
-      return data;
+        .exec();
     } catch (error) {
       console.error("Database error inside bookmarkService.getAll:", error);
       throw error;
@@ -147,6 +194,14 @@ export const bookmarkService = {
       );
       throw error;
     }
+  },
+
+  async isBookmarked(learnerId: string, courseId: string) {
+    const existing = await Bookmark.exists({
+      learner: learnerId,
+      course: courseId,
+    });
+    return Boolean(existing);
   },
 };
 
@@ -243,7 +298,7 @@ export const goalService = {
     try {
       const newGoal = new Goal(goalData);
       const savedGoal = await newGoal.save();
-      
+
       return savedGoal.toObject();
     } catch (error) {
       console.error("Database error inside goalService.create:", error);
@@ -260,5 +315,136 @@ export const goalService = {
       console.error("Database error inside goalService.getAll:", error);
       throw error;
     }
+  },
+};
+
+export const enrollInCourse = async (
+  learnerId: string,
+  courseId: string | string[],
+) => {
+  const session = await mongoose.startSession();
+  try {
+    let result;
+    await session.withTransaction(async () => {
+      const course = await Course.findById(courseId).session(session);
+      if (!course) {
+        throw new AppError("Course not found", StatusCodes.NOT_FOUND);
+      }
+
+      const learner = await Learner.findById(learnerId).session(session);
+      if (!learner) {
+        throw new AppError("Learner not found", StatusCodes.NOT_FOUND);
+      }
+
+      const alreadyEnrolled = learner.enrolledCourses.some(
+        (e: any) => e.courseId.toString() === courseId,
+      );
+      if (alreadyEnrolled) {
+        throw new AppError(
+          "Already enrolled in this course",
+          StatusCodes.CONFLICT,
+        );
+      }
+
+      learner.enrolledCourses.push({
+        courseId: course._id,
+        progress: 0,
+      } as any);
+
+      // Keep the learner's "Courses" stat card in sync
+      const coursesStat = learner.stats.find((s: any) => s.label === "Courses");
+      if (coursesStat) coursesStat.value += 1;
+
+      await learner.save({ session });
+
+      course.enrollmentsCount = (course.enrollmentsCount || 0) + 1;
+      await course.save({ session });
+
+      result = { course, progress: 0 };
+    });
+    return result;
+  } finally {
+    session.endSession();
+  }
+};
+
+export const updateCourseProgress = async (
+  learnerId: string,
+  courseId: string | string[],
+  progress: number,
+) => {
+  const learner = await Learner.findOne({
+    _id: learnerId,
+    "enrolledCourses.courseId": courseId,
+  });
+
+  if (!learner) {
+    throw new AppError(
+      "You are not enrolled in this course",
+      StatusCodes.NOT_FOUND,
+    );
+  }
+
+  const updated = await Learner.findOneAndUpdate(
+    { _id: learnerId, "enrolledCourses.courseId": courseId },
+    { $set: { "enrolledCourses.$.progress": progress } },
+    { new: true, runValidators: true },
+  );
+
+  const tracking = updated?.enrolledCourses.find(
+    (e: any) => e.courseId.toString() === courseId,
+  );
+
+  // Bump the "Completed" pathway: if this crosses 100%, increment Certificates stat
+  if (progress === 100 && updated) {
+    const certStat = updated.stats.find((s: any) => s.label === "Certificates");
+    if (certStat) {
+      certStat.value += 1;
+      await updated.save();
+    }
+  }
+
+  return { courseId, progress: tracking?.progress ?? progress };
+};
+
+export const unenrollFromCourse = async (
+  learnerId: string,
+  courseId: string | string[],
+) => {
+  const session = await mongoose.startSession();
+  try {
+    let result;
+    await session.withTransaction(async () => {
+      const learner = await Learner.findById(learnerId).session(session);
+      if (!learner) {
+        throw new AppError("Learner not found", StatusCodes.NOT_FOUND);
+      }
+
+      const index = learner.enrolledCourses.findIndex(
+        (e: any) => e.courseId.toString() === courseId,
+      );
+      if (index === -1) {
+        throw new AppError(
+          "Not enrolled in this course",
+          StatusCodes.NOT_FOUND,
+        );
+      }
+
+      learner.enrolledCourses.splice(index, 1);
+      const coursesStat = learner.stats.find((s: any) => s.label === "Courses");
+      if (coursesStat && coursesStat.value > 0) coursesStat.value -= 1;
+      await learner.save({ session });
+
+      await Course.findByIdAndUpdate(
+        courseId,
+        { $inc: { enrollmentsCount: -1 } },
+        { session },
+      );
+
+      result = { courseId };
+    });
+    return result;
+  } finally {
+    session.endSession();
   }
 };

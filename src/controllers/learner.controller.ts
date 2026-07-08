@@ -4,11 +4,14 @@ import { returnSuccessResponse } from "../utils/apiout";
 import { StatusCodes } from "../common/errors/statusCodes";
 import {
   bookmarkService,
+  enrollInCourse,
   getCourseById,
   getCourses,
   getLearnerProfile,
   goalService,
   todoService,
+  unenrollFromCourse,
+  updateCourseProgress,
   workspaceNoteService,
 } from "../services/learner.service";
 import { AuthenticatedRequest } from "../middlewares/auth.middleware";
@@ -94,26 +97,25 @@ export const getAssignmentsController = asyncHandler(
   },
 );
 
-export const createBookmarkController = asyncHandler(
-  async (req: Request, res: Response) => {
-    const validatedData = req.body;
+export const toggleBookmarkController = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const { courseId } = req.params;
+    const learnerId = (req.user as any)._id || (req.user as any).id;
+    const { title, type, note } = req.body;
 
-    const newBookmark = await bookmarkService.create(validatedData);
+    const result = await bookmarkService.toggle(learnerId, courseId, { title, type, note });
 
-    return returnSuccessResponse(res, StatusCodes.CREATED, {
-      message: "Bookmark saved successfully",
-      bookmark: {
-        id: newBookmark._id, // Normalize standard database reference key
-        ...newBookmark,
-      },
+    return returnSuccessResponse(res, StatusCodes.OK, {
+      message: result.bookmarked ? "Bookmark added" : "Bookmark removed",
+      ...result,
     });
   },
 );
 
 export const getBookmarksController = asyncHandler(
   async (req: AuthenticatedRequest, res: Response) => {
-    const user = req.user;
-    const bookmarks = await bookmarkService.getAll(user);
+    const learnerId = (req.user as any)._id || (req.user as any).id;
+    const bookmarks = await bookmarkService.getAll(learnerId);
 
     return returnSuccessResponse(res, StatusCodes.OK, {
       message: "Bookmarks directory compiled successfully",
@@ -289,6 +291,48 @@ export const getGoalsController = asyncHandler(
     return returnSuccessResponse(res, StatusCodes.OK, {
       message: "Workspace metrics directory compiled successfully.",
       goals,
+    });
+  },
+);
+
+export const enrollInCourseController = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const { courseId } = req.params;
+    const learnerId = (req.user as any)._id || (req.user as any).id;
+
+    const result = await enrollInCourse(learnerId, courseId);
+
+    return returnSuccessResponse(res, StatusCodes.CREATED, {
+      message: "Enrolled successfully",
+      enrollment: result,
+    });
+  },
+);
+
+export const updateCourseProgressController = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const { courseId } = req.params;
+    const { progress } = req.body;
+    const learnerId = (req.user as any)._id || (req.user as any).id;
+
+    const result = await updateCourseProgress(learnerId, courseId, progress);
+
+    return returnSuccessResponse(res, StatusCodes.OK, {
+      message: "Progress updated successfully",
+      ...result,
+    });
+  },
+);
+
+export const unenrollFromCourseController = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const { courseId } = req.params;
+    const learnerId = (req.user as any)._id || (req.user as any).id;
+
+    const result = await unenrollFromCourse(learnerId, courseId);
+
+    return returnSuccessResponse(res, StatusCodes.OK, {
+      message: "Unenrolled successfully",
     });
   },
 );

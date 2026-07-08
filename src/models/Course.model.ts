@@ -36,6 +36,7 @@ const CourseSchema = new Schema(
     lessonsCount: { type: Number, required: true, default: 0, min: 0 },
     rating: { type: Number, required: true, default: 0, min: 0, max: 5 },
     reviews: { type: Number, required: true, default: 0, min: 0 },
+    enrollmentsCount: { type: Number, required: true, default: 0, min: 0 },
     thumbnail: { type: String, required: true },
     tags: [{ type: String, trim: true }],
     description: { type: String, required: true },
@@ -47,7 +48,7 @@ const CourseSchema = new Schema(
   },
 );
 
-CourseSchema.pre("save",async function () {
+CourseSchema.pre("save", async function () {
   let totalCourseMins = 0;
   let totalLessonsCounter = 0;
 
@@ -67,7 +68,6 @@ CourseSchema.pre("save",async function () {
   // Calculate Course Duration: Convert aggregate course minutes to hours (rounded to 1 decimal place)
   this.durationHrs = Math.round((totalCourseMins / 60) * 10) / 10;
   this.lessonsCount = totalLessonsCounter;
-
 });
 
 // High-speed indices for compound course marketplace filter tabs

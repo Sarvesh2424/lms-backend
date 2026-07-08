@@ -1,17 +1,9 @@
-import { Schema, model, Document, Types } from "mongoose";
+import { Schema, model } from "mongoose";
 
 const BookmarkSchema = new Schema(
   {
-    learner: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    title: {
-      type: String,
-      required: true,
-      trim: true,
-    },
+    learner: { type: String, required: true, trim: true },
+    title: { type: String, required: true, trim: true },
     type: {
       type: String,
       enum: [
@@ -22,6 +14,7 @@ const BookmarkSchema = new Schema(
         "quiz",
         "discussion",
         "resource",
+        "course",
       ],
       required: true,
     },
@@ -29,16 +22,14 @@ const BookmarkSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: "Course",
       required: true,
-      trim: true,
     },
-    note: {
-      type: String,
-      trim: true,
-    },
+    note: { type: String, trim: true },
   },
-  {
-    timestamps: true, // Adds and tracks standard createdAt and updatedAt properties automatically
-  },
+  { timestamps: true },
 );
+
+// A learner can only bookmark a given course once — enforced at the DB level,
+// not just client-side, so concurrent double-clicks can't create duplicates.
+BookmarkSchema.index({ learner: 1, course: 1 }, { unique: true });
 
 export const Bookmark = model("Bookmark", BookmarkSchema);
