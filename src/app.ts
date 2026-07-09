@@ -11,6 +11,7 @@ app.use(
   cors({
     origin: [
       "http://localhost:8080",
+      "https://localhost:8080",
       "http://localhost:3000",
       "http://localhost:5173",
       "https://learnflow-pro-nine.vercel.app"
