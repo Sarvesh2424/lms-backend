@@ -14,7 +14,8 @@ app.use(
       "https://localhost:8080",
       "http://localhost:3000",
       "http://localhost:5173",
-      "https://learnflow-pro-nine.vercel.app"
+      "https://learnflow-pro-nine.vercel.app",
+      "https://elevate-instructor.vercel.app"
     ],
     credentials: true,
   }),
