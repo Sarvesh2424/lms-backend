@@ -7,14 +7,20 @@ import routes from "./routes/index";
 import cookieparser from "cookie-parser";
 export const app = express();
 
+// app.use(
+//   cors({
+//     origin: [
+//       "http://localhost:8080",
+//       "http://localhost:3000",
+//       "http://localhost:5173",
+//       "https://learnflow-pro-nine.vercel.app"
+//     ],
+//     credentials: true,
+//   }),
+// );
 app.use(
   cors({
-    origin: [
-      "http://localhost:8080",
-      "http://localhost:3000",
-      "http://localhost:5173",
-      "https://learnflow-pro-nine.vercel.app"
-    ],
+    origin: true,
     credentials: true,
   }),
 );
