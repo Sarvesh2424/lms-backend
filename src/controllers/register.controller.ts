@@ -2,7 +2,10 @@ import { Request, Response } from "express";
 import { returnSuccessResponse } from "../utils/apiout";
 import { asyncHandler } from "../utils/asyncHandler";
 import { StatusCodes } from "../common/errors/statusCodes";
-import { registerInstructor, registerLearner } from "../services/register.service";
+import {
+  registerInstructor,
+  registerLearner,
+} from "../services/register.service";
 
 export const registerLearnerController = asyncHandler(
   async (req: Request, res: Response) => {
@@ -31,8 +34,6 @@ export const registerInstructorController = asyncHandler(
       email,
       name,
       password,
-      title: "",
-      stats: [],
     });
 
     returnSuccessResponse(res, StatusCodes.CREATED, {

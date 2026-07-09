@@ -5,23 +5,22 @@ import { StatusCodes } from "../common/errors/statusCodes";
 import {
   assignmentService,
   createCourse,
+  getInstructorProfile,
 } from "../services/instructor.service";
+import { AuthenticatedRequest } from "../middlewares/auth.middleware";
 
-export const createCourseController = asyncHandler(
-  async (req: Request, res: Response) => {
-    const newCourse = await createCourse(req.body);
-
-    returnSuccessResponse(res, StatusCodes.CREATED, {
-      message: "Course created successfully",
-      course: newCourse,
-    });
+export const getInstructorProfileController = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const instructorId = (req.user as any)._id || (req.user as any).id;
+    const profile = await getInstructorProfile(instructorId);
+    returnSuccessResponse(res, StatusCodes.OK, profile);
   },
 );
 
 export const createAssignmentController = asyncHandler(
   async (req: Request, res: Response) => {
     const validatedData = req.body;
-    
+
     const newAssignment = await assignmentService.create(validatedData);
 
     // Dispatch uniform success response with your standard envelope structure

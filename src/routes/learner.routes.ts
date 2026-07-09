@@ -31,8 +31,15 @@ import { WorkspaceNoteZodSchema } from "../schemas/workspaceNote.schema";
 import { TodoZodSchema } from "../schemas/todo.schema";
 import { GoalZodSchema } from "../schemas/goal.schema";
 import { UpdateProgressSchema } from "../schemas/enrollment.schema";
+import { getLearnerSessionController } from "../controllers/session.controller";
 
 const router = Router();
+
+router.get(
+  "/me",
+  authMiddleware("learner_token"),
+  getLearnerSessionController,
+);
 
 router.get(
   "/get-profile",

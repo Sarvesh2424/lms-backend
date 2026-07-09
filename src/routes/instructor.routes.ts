@@ -10,17 +10,23 @@ import {
 import { CourseZodSchema } from "../schemas/course.schema";
 import {
   createAssignmentController,
-  createCourseController,
+  getInstructorProfileController,
 } from "../controllers/instructor.controller";
 import { AssignmentZodSchema } from "../schemas/assignment.schema";
+import { getInstructorSessionController } from "../controllers/session.controller";
 
 const router = Router();
 
-router.post(
-  "/create-course",
-  validate(CourseZodSchema),
-  // authMiddleware("learner_token"),
-  createCourseController,
+router.get(
+  "/me",
+  authMiddleware("instructor_token"),
+  getInstructorSessionController,
+);
+
+router.get(
+  "/get-profile",
+  authMiddleware("instructor_token"),
+  getInstructorProfileController,
 );
 
 router.post(

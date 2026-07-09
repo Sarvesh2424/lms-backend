@@ -5,6 +5,7 @@ import {
   registerInstructorController,
   registerLearnerController,
 } from "../controllers/register.controller";
+import { InstructorLoginZodSchema } from "../schemas/instructor.schema";
 
 const router = Router();
 
@@ -13,6 +14,10 @@ router.post(
   validate(LearnerProfileZodSchema),
   registerLearnerController,
 );
-router.post("/instructor-register", registerInstructorController);
+router.post(
+  "/instructor-register",
+  validate(InstructorLoginZodSchema),
+  registerInstructorController,
+);
 
 export default router;

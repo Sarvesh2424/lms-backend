@@ -1,9 +1,14 @@
 import { Schema, model } from "mongoose";
+import { COURSE_STATUS, LESSON_TYPES } from "../types/course.constants";
 
 const LessonSchema = new Schema(
   {
     title: { type: String, required: true, trim: true },
+    type: { type: String, required: true, enum: LESSON_TYPES },
     durationMins: { type: Number, required: true, min: 0 },
+    order: { type: Number, required: true, default: 0 },
+    isPreview: { type: Boolean, default: false },
+    content: { type: Schema.Types.Mixed }, // shape varies by lesson type
   },
   { _id: false },
 );
@@ -11,6 +16,7 @@ const LessonSchema = new Schema(
 const SyllabusModuleSchema = new Schema(
   {
     module: { type: String, required: true, trim: true },
+    order: { type: Number, required: true, default: 0 },
     lessons: [LessonSchema],
     durationMins: { type: Number, required: true, default: 0 },
   },
@@ -20,18 +26,33 @@ const SyllabusModuleSchema = new Schema(
 const CourseSchema = new Schema(
   {
     title: { type: String, required: true, unique: true, trim: true },
-    instructor: {
-      type: Schema.Types.ObjectId,
-      ref: "Instructor",
-      required: true,
-    },
+    slug: { type: String, required: true, unique: true, index: true },
+    instructor: { type: Schema.Types.ObjectId, ref: "Instructor", required: true, index: true },
     category: { type: String, required: true, index: true, trim: true },
-    level: {
+    level: { type: String, required: true, enum: ["Beginner", "Intermediate", "Advanced"], index: true },
+
+    status: {
       type: String,
       required: true,
-      enum: ["Beginner", "Intermediate", "Advanced"],
+      enum: Object.values(COURSE_STATUS),
+      default: COURSE_STATUS.DRAFT,
       index: true,
     },
+    reviewNotes: { type: String, default: null },
+    hasUnpublishedChanges: { type: Boolean, default: false },
+    publishedAt: { type: Date, default: null },
+    scheduledPublishAt: { type: Date, default: null },
+    archivedAt: { type: Date, default: null },
+    version: { type: Number, default: 0 }, // bumped only on publish - a content version, not a concurrency token
+    revision: { type: Number, default: 0 }, // bumped on every write - used for optimistic locking
+
+    price: {
+      amount: { type: Number, default: 0, min: 0 },
+      currency: { type: String, default: "USD" },
+    },
+    isFree: { type: Boolean, default: true },
+    seoDescription: { type: String, default: "" },
+
     durationHrs: { type: Number, required: true, default: 0, min: 0 },
     lessonsCount: { type: Number, required: true, default: 0, min: 0 },
     rating: { type: Number, required: true, default: 0, min: 0, max: 5 },
@@ -43,35 +64,11 @@ const CourseSchema = new Schema(
     outcomes: [{ type: String, trim: true }],
     syllabus: [SyllabusModuleSchema],
   },
-  {
-    timestamps: true,
-  },
+  { timestamps: true },
 );
 
-CourseSchema.pre("save", async function () {
-  let totalCourseMins = 0;
-  let totalLessonsCounter = 0;
-
-  // Iterate over each module in the syllabus array
-  for (const mod of this.syllabus) {
-    // Calculate Module Duration: Sum of individual lesson durations
-    const moduleMins = mod.lessons.reduce(
-      (sum, lesson) => sum + lesson.durationMins,
-      0,
-    );
-
-    mod.durationMins = moduleMins; // Set module total
-    totalCourseMins += moduleMins; // Add to global course tracking accumulator
-    totalLessonsCounter += mod.lessons.length;
-  }
-
-  // Calculate Course Duration: Convert aggregate course minutes to hours (rounded to 1 decimal place)
-  this.durationHrs = Math.round((totalCourseMins / 60) * 10) / 10;
-  this.lessonsCount = totalLessonsCounter;
-});
-
-// High-speed indices for compound course marketplace filter tabs
 CourseSchema.index({ category: 1, level: 1 });
 CourseSchema.index({ rating: -1 });
+CourseSchema.index({ instructor: 1, status: 1 }); // "my courses" tab queries
 
 export const Course = model("Course", CourseSchema);

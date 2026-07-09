@@ -27,16 +27,12 @@ export const getCourses = async (
 ) => {
   const queryFilter: any = {};
 
-  // Category tab assignment filtering
   if (filters.category && filters.category !== "All") {
     queryFilter.category = filters.category;
   }
-
-  // Level classification validation matching
   if (filters.level) {
     queryFilter.level = filters.level;
   }
-
   if (filters.search) {
     const searchRegex = new RegExp(filters.search, "i");
     queryFilter.$or = [
@@ -49,25 +45,28 @@ export const getCourses = async (
   const [coursesDocs, learnerDoc] = await Promise.all([
     Course.find(queryFilter)
       .sort({ rating: -1, createdAt: -1 })
-      .populate({
-        path: "instructor",
-        select: "name title email",
-      })
+      .populate({ path: "instructor", select: "name title email" })
       .exec(),
     Learner.findById(learnerData._id || learnerData.id).exec(),
   ]);
 
-  // Safety Fallback: If no learner record exists, return plain courses with 0 progress
   if (!learnerDoc) {
     return coursesDocs.map((doc) => ({
       ...doc.toObject(),
       progress: 0,
+      isEnrolled: false,
     }));
   }
 
   const learner = learnerDoc.toObject() as any;
+  const learnerId = learnerData._id || learnerData.id;
 
-  // Map through all courses and inject individual progress metrics from the user document
+  const bookmarkedCourseIds = new Set(
+    (await Bookmark.find({ learner: learnerId }).select("course").lean()).map(
+      (b: any) => b.course.toString(),
+    ),
+  );
+
   const coursesWithProgress = coursesDocs.map((doc) => {
     const course = doc.toObject() as any;
 
@@ -76,6 +75,8 @@ export const getCourses = async (
     );
 
     course.progress = tracking ? tracking.progress : 0;
+    course.isEnrolled = Boolean(tracking);
+    course.isBookmarked = bookmarkedCourseIds.has(course._id.toString());
 
     return course;
   });

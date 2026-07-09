@@ -6,6 +6,7 @@ import logoutRoutes from "./logout.routes";
 import uploadRoutes from "./upload.routes";
 import instructorRoutes from "./instructor.routes";
 import learningPathRoutes from "./learningPath.routes";
+import courseRoutes from "./course.routes";
 const router = Router();
 
 router.use("/login", loginRoutes);
@@ -14,6 +15,7 @@ router.use("/learner", learnerRoutes);
 router.use("/instructor", instructorRoutes);
 router.use("/logout", logoutRoutes);
 router.use("/upload", uploadRoutes);
-router.use("/learningPath",learningPathRoutes)
+router.use("/learningPath", learningPathRoutes);
+router.use("/courses", courseRoutes);
 
 export default router;

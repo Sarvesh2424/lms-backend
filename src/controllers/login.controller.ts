@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { asyncHandler } from "../utils/asyncHandler";
 import { returnSuccessResponse } from "../utils/apiout";
 import { StatusCodes } from "../common/errors/statusCodes";
-import { loginLearner } from "../services/login.service";
+import { loginInstructor, loginLearner } from "../services/login.service";
 
 export const loginLearnerController = asyncHandler(
   async (req: Request, res: Response) => {
@@ -22,6 +22,32 @@ export const loginLearnerController = asyncHandler(
         email: email,
         name: learner.name, // Fallback name calculation
         roles: ["Learner"],
+      },
+      accessToken: token,
+      expiresAt: Date.now() + 1 * 24 * 60 * 60 * 1000,
+    });
+  },
+);
+
+export const loginInstructorController = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { email, password } = req.body;
+    const { token, instructor } = await loginInstructor({ email, password });
+
+    res.cookie("instructor_token", token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "none",
+      path: "/",
+      maxAge: 1 * 24 * 60 * 60 * 1000,
+    });
+
+    returnSuccessResponse(res, StatusCodes.OK, {
+      user: {
+        id: instructor._id,
+        email: instructor.email,
+        name: instructor.name,
+        roles: ["Instructor"],
       },
       accessToken: token,
       expiresAt: Date.now() + 1 * 24 * 60 * 60 * 1000,
