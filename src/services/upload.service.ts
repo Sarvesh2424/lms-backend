@@ -46,3 +46,69 @@ export const uploadAndCompressImage = async (file: Express.Multer.File) => {
     publicUrl: `https://${bucketName}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`,
   };
 };
+
+const RESOURCE_MIME_ALLOWLIST = [
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "video/mp4",
+  "video/webm",
+  "video/quicktime",
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+];
+
+export function classifyResourceType(
+  mimeType: string,
+): "pdf" | "doc" | "video" | "image" | "other" {
+  if (mimeType === "application/pdf") return "pdf";
+  if (mimeType.startsWith("video/")) return "video";
+  if (mimeType.startsWith("image/")) return "image";
+  if (
+    mimeType.includes("word") ||
+    mimeType.includes("powerpoint") ||
+    mimeType.includes("presentation")
+  )
+    return "doc";
+  return "other";
+}
+
+export const uploadResourceFile = async (file: Express.Multer.File) => {
+  const bucketName = process.env.AWS_BUCKET_NAME;
+  if (!bucketName) {
+    throw new AppError(
+      "AWS_BUCKET_NAME is missing from your server environment variables.",
+      StatusCodes.INTERNAL_SERVER_ERROR,
+    );
+  }
+
+  if (!RESOURCE_MIME_ALLOWLIST.includes(file.mimetype)) {
+    throw new AppError(
+      `File type '${file.mimetype}' is not supported.`,
+      StatusCodes.BAD_REQUEST,
+    );
+  }
+
+  const originalName = file.originalname.replace(/\s+/g, "_");
+  const key = `uploads/lms/resources/${Date.now()}-${originalName}`;
+
+  await s3.send(
+    new PutObjectCommand({
+      Bucket: bucketName,
+      Key: key,
+      Body: file.buffer,
+      ContentType: file.mimetype,
+      ACL: "public-read",
+    }),
+  );
+
+  return {
+    publicUrl: `https://${bucketName}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`,
+    sizeBytes: file.size,
+    mimeType: file.mimetype,
+    type: classifyResourceType(file.mimetype),
+  };
+};

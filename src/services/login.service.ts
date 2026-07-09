@@ -50,37 +50,35 @@ export const loginLearner = async ({ email, password }: LoginPayload) => {
 
 export const loginInstructor = async ({ email, password }: LoginPayload) => {
   const instructor = await Instructor.findOne({ email: email.toLowerCase() });
-
-  if (!instructor) {
+  if (!instructor)
     throw new AppError("Invalid email or password", StatusCodes.UNAUTHORIZED);
-  }
 
-  if (!password) {
+  if (!password)
     throw new AppError("Password is required", StatusCodes.BAD_REQUEST);
-  }
 
   const isPasswordValid = await bcrypt.compare(password, instructor.password);
-  if (!isPasswordValid) {
+  if (!isPasswordValid)
     throw new AppError("Invalid email or password", StatusCodes.UNAUTHORIZED);
-  }
 
   const jwtSecret = env.JWT_SECRET;
-  if (!jwtSecret) {
+  if (!jwtSecret)
     throw new AppError(
       "JWT Secret configuration missing",
       StatusCodes.INTERNAL_SERVER_ERROR,
     );
-  }
+
+  const tokenId = crypto.randomUUID(); // becomes the session's unique identifier
 
   const token = jwt.sign(
     {
       id: instructor._id,
       email: instructor.email,
       role: "Instructor",
+      jti: tokenId,
     },
     jwtSecret,
     { expiresIn: "1d" },
   );
 
-  return { token, instructor };
+  return { token, instructor, tokenId };
 };

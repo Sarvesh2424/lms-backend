@@ -10,6 +10,7 @@ interface JwtPayload {
   orgId: string;
   permissionId: string;
   permissions?: Record<string, Record<string, boolean>>;
+   jti?: string;
 }
 
 export interface AuthenticatedRequest extends Request {
@@ -18,6 +19,7 @@ export interface AuthenticatedRequest extends Request {
     role: string;
     orgId: string;
     permissions?: Record<string, Record<string, boolean>>;
+    tokenId?: string;
   };
 }
 
@@ -47,6 +49,7 @@ export const authenticate =
         role: payload.role,
         orgId: payload.orgId,
         permissions: permissions,
+        tokenId: payload.jti,
       };
 
       next();

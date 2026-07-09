@@ -3,6 +3,8 @@ import { asyncHandler } from "../utils/asyncHandler";
 import { returnSuccessResponse } from "../utils/apiout";
 import { StatusCodes } from "../common/errors/statusCodes";
 import { loginInstructor, loginLearner } from "../services/login.service";
+import { InstructorSession } from "../models/InstructorSession.model";
+import { parseDeviceInfo } from "../utils/parseDeviceInfo";
 
 export const loginLearnerController = asyncHandler(
   async (req: Request, res: Response) => {
@@ -32,7 +34,19 @@ export const loginLearnerController = asyncHandler(
 export const loginInstructorController = asyncHandler(
   async (req: Request, res: Response) => {
     const { email, password } = req.body;
-    const { token, instructor } = await loginInstructor({ email, password });
+    const { token, instructor, tokenId } = await loginInstructor({
+      email,
+      password,
+    });
+
+    await InstructorSession.create({
+      instructor: instructor._id,
+      tokenId,
+      device: parseDeviceInfo(req.headers["user-agent"] as string),
+      userAgent: (req.headers["user-agent"] as string) || "",
+      ip: req.ip,
+      lastActiveAt: new Date(),
+    });
 
     res.cookie("instructor_token", token, {
       httpOnly: true,
