@@ -7,6 +7,7 @@ import uploadRoutes from "./upload.routes";
 import instructorRoutes from "./instructor.routes";
 import learningPathRoutes from "./learningPath.routes";
 import courseRoutes from "./course.routes";
+import certificateRoutes from "./certificate.routes";
 const router = Router();
 
 router.use("/login", loginRoutes);
@@ -17,5 +18,6 @@ router.use("/logout", logoutRoutes);
 router.use("/upload", uploadRoutes);
 router.use("/learningPath", learningPathRoutes);
 router.use("/courses", courseRoutes);
+router.use("/certificates", certificateRoutes);
 
 export default router;

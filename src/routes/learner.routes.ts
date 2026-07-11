@@ -32,14 +32,11 @@ import { TodoZodSchema } from "../schemas/todo.schema";
 import { GoalZodSchema } from "../schemas/goal.schema";
 import { UpdateProgressSchema } from "../schemas/enrollment.schema";
 import { getLearnerSessionController } from "../controllers/session.controller";
+import { getMyCertificatesController } from "../controllers/certificate.controller";
 
 const router = Router();
 
-router.get(
-  "/me",
-  authMiddleware("learner_token"),
-  getLearnerSessionController,
-);
+router.get("/me", authMiddleware("learner_token"), getLearnerSessionController);
 
 router.get(
   "/get-profile",
@@ -130,6 +127,12 @@ router.delete(
   "/unenroll/:courseId",
   authMiddleware("learner_token"),
   unenrollFromCourseController,
+);
+
+router.get(
+  "/get-certificates",
+  authMiddleware("learner_token"),
+  getMyCertificatesController,
 );
 
 export default router;
